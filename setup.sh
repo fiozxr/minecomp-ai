@@ -218,6 +218,10 @@ cd "$HOME/.local/share/minecomp-ai" && python3 -m minecomp "$@"
 LAUNCHER
     chmod +x "$HOME/.local/bin/minecomp"
     echo "  Launcher created: ~/.local/bin/minecomp"
+    case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) echo "  Note: add ~/.local/bin to your PATH to run 'minecomp' anywhere." ;;
+    esac
 fi
 
 # ---------------------------------------------------------------------------
