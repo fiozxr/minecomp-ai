@@ -10,7 +10,7 @@ venv/
 ENV/
 .env
 
-# Config files with secrets (the example template is safe to commit)
+# Config files with secrets
 config.yaml
 
 # OS files

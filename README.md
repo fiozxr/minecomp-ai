@@ -108,7 +108,16 @@ python -m minecomp --api-key YOUR_NVIDIA_KEY --base-url https://integrate.api.nv
 
 ## Configuration
 
-See `config.yaml.example` for all available options.
+The installer writes `~/.minecomp-ai/config.yaml` for you. To change
+providers or models later, edit that file or re-run the installer.
+
+```yaml
+api_key: "your-api-key-here"
+base_url: "https://openrouter.ai/api/v1"
+model: "google/gemini-2.0-flash"
+gateway_host: "127.0.0.1"
+gateway_port: 8080
+```
 
 ## Architecture
 
@@ -190,7 +199,13 @@ python -m minecomp --api-key local --base-url http://localhost:1234/v1 --model l
 
 ## Configuration Reference
 
-See `config.yaml.example` for all available options.
+| Key | Description | Default |
+|-----|-------------|---------|
+| `api_key` | API key for your provider | — |
+| `base_url` | OpenAI-compatible API base URL | `https://openrouter.ai/api/v1` |
+| `model` | Model ID from your provider | `google/gemini-2.0-flash` |
+| `gateway_host` | WebSocket gateway host | `127.0.0.1` |
+| `gateway_port` | WebSocket gateway port | `8080` |
 
 ## Requirements
 
@@ -360,7 +375,6 @@ minecomp-ai/
 ├── setup.sh                    # One-click installer
 ├── README.md                   # This file
 ├── requirements.txt            # Python dependencies
-├── config.yaml.example         # Configuration template
 ├── minecomp/
 │   ├── __init__.py            # Version: 0.2.1
 │   ├── __main__.py            # Entry point (python -m minecomp)
