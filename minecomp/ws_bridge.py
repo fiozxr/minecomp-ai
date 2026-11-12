@@ -110,8 +110,11 @@ class WsBridge:
                 ))
             elif mtype == "event":
                 self._msg_queue.put_nowait(("event", data.get("body", {})))
-            elif mtype == "commandResult":
-                self._msg_queue.put_nowait(("command_result", data.get("body", {})))
+            elif mtype in ("commandResult", "commandResponse"):
+                # Keep the requestId so send_command() can match responses.
+                body = data.get("body", {})
+                body.setdefault("requestId", data.get("requestId"))
+                self._msg_queue.put_nowait(("command_result", body))
 
     # -- public API -------------------------------------------------------
 
@@ -128,17 +131,19 @@ class WsBridge:
             "body": {"command": command},
         }))
 
-        # Wait for the matching commandResponse (simplified polling)
+        # Wait for the matching commandResponse via the listener queue (only one
+        # coroutine may call recv() at a time, so we never recv directly here).
         deadline = asyncio.get_event_loop().time() + timeout
         while asyncio.get_event_loop().time() < deadline:
             try:
-                raw = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
+                kind, payload = await asyncio.wait_for(
+                    self._msg_queue.get(), timeout=0.5
+                )
             except asyncio.TimeoutError:
                 continue
-            data = json.loads(raw)
-            if (data.get("messagePurpose") == "commandResponse"
-                    and data.get("requestId") == request_id):
-                return data.get("body", {}).get("success", False)
+            if (kind == "command_result"
+                    and payload.get("requestId") == request_id):
+                return payload.get("success", False)
         return False
 
     async def listen_chat(self):

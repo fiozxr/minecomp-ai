@@ -65,7 +65,6 @@ class Gateway:
 
     async def _negotiate(self, websocket, client_id):
         """Wait for the client's connection request with capabilities."""
-        req_id = str(uuid.uuid4())
         try:
             raw = await asyncio.wait_for(websocket.recv(), timeout=5.0)
         except asyncio.TimeoutError:
@@ -73,7 +72,7 @@ class Gateway:
                 "protocol": PROTOCOL_VERSION,
                 "messagePurpose": "connectionRejected",
                 "messageType": "connectionRejected",
-                "requestId": req_id,
+                "requestId": str(uuid.uuid4()),
                 "body": {"reason": "No connection request received"},
             }))
             return
@@ -85,17 +84,20 @@ class Gateway:
                 "protocol": PROTOCOL_VERSION,
                 "messagePurpose": "connectionRejected",
                 "messageType": "connectionRejected",
-                "requestId": req_id,
+                "requestId": str(uuid.uuid4()),
                 "body": {"reason": "Invalid JSON"},
             }))
             return
+
+        # Echo the client's request id (the client matches on this)
+        request_id = data.get("requestId", str(uuid.uuid4()))
 
         if data.get("messagePurpose") != "connectionRequest":
             await websocket.send(json.dumps({
                 "protocol": PROTOCOL_VERSION,
                 "messagePurpose": "connectionRejected",
                 "messageType": "connectionRejected",
-                "requestId": req_id,
+                "requestId": request_id,
                 "body": {"reason": "Not a connection request"},
             }))
             return
@@ -105,7 +107,7 @@ class Gateway:
             "protocol": PROTOCOL_VERSION,
             "messagePurpose": "connectionAccepted",
             "messageType": "connectionAccepted",
-            "requestId": req_id,
+            "requestId": request_id,
             "body": {
                 "clientId": client_id,
                 "serverMetadata": {"name": "minecomp-ai gateway"},
