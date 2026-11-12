@@ -1,191 +1,232 @@
 #!/usr/bin/env bash
-# minecomp-ai installer (interactive, ARM-friendly)
+# minecomp-ai installer
 # Usage: curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/setup.sh | bash
 
 set -euo pipefail
 
-# ---- Detect architecture ----
-ARCH=$(uname -m 2>/dev/null || echo "unknown")
-echo ""
 echo "========================================"
 echo "  minecomp-ai installer"
 echo "========================================"
-echo "  CPU: $ARCH"
 
-# ---- Helper functions ----
-info()    { echo "  ℹ $*"; }
-error()   { echo "  ✗ ERROR: $*" >&2; }
-warn()    { echo "  ⚠ $*"; }
-success() { echo "  ✓ $*"; }
-
-# ---- Step 0: Directory check ----
+# ---------------------------------------------------------------------------
+# Preflight: check resources (git, python3, pip, GitHub)
+# ---------------------------------------------------------------------------
 echo ""
-if [ -d "minecomp-ai" ]; then
-    echo "[0/6] Directory 'minecomp-ai' already exists."
-    echo "  Use it, or clone fresh? [use]"
-    read -r ANS
-    if [ "$ANS" = "n" ] || [ "$ANS" = "N" ]; then
-        echo "  Removing old directory..."
-        rm -rf minecomp-ai
-    fi
-fi
+echo "Checking resources..."
 
-# ---- Step 1: Check and install git ----
-echo ""
-echo "[1/6] Checking for git..."
-if ! command -v git &>/dev/null; then
-    info "git is not installed. Installing..."
-    if command -v pkg &>/dev/null; then
+if ! command -v git >/dev/null 2>&1; then
+    echo "  git not found. Installing..."
+    if command -v pkg >/dev/null 2>&1; then
         pkg install -y git
-    elif command -v apt-get &>/dev/null; then
+    elif command -v apt-get >/dev/null 2>&1; then
         apt-get update && apt-get install -y git
-    elif command -v apk &>/dev/null; then
+    elif command -v apk >/dev/null 2>&1; then
         apk add git
-    elif command -v brew &>/dev/null; then
+    elif command -v brew >/dev/null 2>&1; then
         brew install git
     else
-        error "git is required but could not be installed."
-        exit 1
-    fi
-fi
-command -v git &>/dev/null || { error "git still not found. Exiting."; exit 1; }
-success "git found."
-
-# ---- Step 2: Clone repository ----
-echo ""
-echo "[2/6] Cloning repository..."
-if [ -d "minecomp-ai" ]; then
-    echo "  Using existing directory..."
-    cd minecomp-ai
-else
-    if git clone https://github.com/fiozxr/minecomp-ai.git 2>/dev/null; then
-        success "Repository cloned."
-        cd minecomp-ai
-    else
-        error "Failed to clone repository."
+        echo "ERROR: git is required but could not be installed."
         exit 1
     fi
 fi
 
-# ---- Step 3: Check and install Python ----
-echo ""
-echo "[3/6] Checking for Python..."
-if ! command -v python3 &>/dev/null; then
-    info "Python is not installed. Installing..."
-    if command -v pkg &>/dev/null; then
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "  python3 not found. Installing..."
+    if command -v pkg >/dev/null 2>&1; then
         pkg install -y python
-    elif command -v apt-get &>/dev/null; then
+    elif command -v apt-get >/dev/null 2>&1; then
         apt-get update && apt-get install -y python3 python3-pip
-    elif command -v apk &>/dev/null; then
+    elif command -v apk >/dev/null 2>&1; then
         apk add python3 py3-pip
-    elif command -v brew &>/dev/null; then
+    elif command -v brew >/dev/null 2>&1; then
         brew install python
     else
-        error "Python 3 required but could not be installed."
+        echo "ERROR: python3 is required but could not be installed."
         exit 1
     fi
 fi
-command -v python3 &>/dev/null || { error "Python 3 still not found. Exiting."; exit 1; }
-success "Python $(python3 --version 2>&1) found."
 
-# Check pip
-if ! python3 -m pip --version &>/dev/null; then
-    info "pip is not installed. Installing..."
-    if command -v apt-get &>/dev/null; then
+if ! python3 -m pip --version >/dev/null 2>&1; then
+    echo "  pip not found. Installing..."
+    if command -v apt-get >/dev/null 2>&1; then
         apt-get update && apt-get install -y python3-pip
-    elif command -v apk &>/dev/null; then
+    elif command -v apk >/dev/null 2>&1; then
         apk add py3-pip
     else
-        python3 -m ensurepip --upgrade
+        python3 -m ensurepip --upgrade || true
     fi
 fi
-success "pip found."
 
-# ---- Step 4: Install dependencies ----
-echo ""
-echo "[4/6] Installing dependencies..."
-if ! python3 -m pip install -r requirements.txt 2>/dev/null; then
-    warn "Some packages failed. Trying with --break-system-packages..."
-    python3 -m pip install --break-system-packages -r requirements.txt 2>/dev/null || {
-        echo "  ⚠ Manual install needed: python3 -m pip install -r requirements.txt"
-    }
+if ! git ls-remote https://github.com/fiozxr/minecomp-ai.git >/dev/null 2>&1; then
+    echo "ERROR: cannot reach GitHub (github.com/fiozxr/minecomp-ai)."
+    echo "       Check your internet connection and try again."
+    exit 1
 fi
-success "Dependencies installed."
 
-# ---- Step 5: Choose install location ----
+echo "  All resources OK."
+
+# ---------------------------------------------------------------------------
+# Question 1: where to install
+# ---------------------------------------------------------------------------
 echo ""
-echo "[5/5] Where to install?"
+echo "Where do you want to install?"
 echo "  1) Global (system-wide)"
 echo "  2) Current directory"
-echo "  3) Custom directory"
-read -p "Choice [2]: " CHOICE
-CHOICE=${CHOICE:-2}
+echo "  3) Exit"
+read -r -p "Choice [1]: " INSTALL_CHOICE || true
+INSTALL_CHOICE=${INSTALL_CHOICE:-1}
 
-if [ "$CHOICE" = "1" ]; then
-    echo "  → Global install..."
-    python3 -m pip install -r requirements.txt
-    success "Global install complete."
-elif [ "$CHOICE" = "3" ]; then
-    read -p "Directory name: " DIR
-    echo "  → Installing to '$DIR'..."
-    mkdir -p "$DIR"
-    cp -r * "$DIR/" 2>/dev/null
-    success "Install complete."
-    echo "  Run: cd $DIR && python -m minecomp"
-else
-    echo "  → Current directory..."
-    echo "  ✓ Dependencies installed."
-    echo "  ✓ Files ready in this folder."
-    echo "  Run: python -m minecomp"
+if [ "$INSTALL_CHOICE" = "3" ]; then
+    echo "Exiting."
+    exit 0
 fi
 
-# ---- Step 6: Configure API key and settings ----
+# ---------------------------------------------------------------------------
+# Question 2: which provider
+# ---------------------------------------------------------------------------
 echo ""
-echo "[6/6] Let's configure your API key and settings."
-echo ""
-read -p "  Enter your API key: " API_KEY
-echo ""
-echo ""
-echo "  What model would you like to use?"
-echo "  1) mercury-2"
-echo "  2) mercury-2.5"
-echo "  3) mercury-3"
-echo "  4) mercury-decide"
-echo "  5) Custom model name"
-read -p "  Choice [1]: " MODEL_CHOICE
-MODELS=("mercury-2" "mercury-2.5" "mercury-3" "mercury-decide")
-if [ "$MODEL_CHOICE" = "5" ]; then
-    read -p "  Enter model name: " CUSTOM_MODEL
-    MODEL=${CUSTOM_MODEL:-mercury-3}
-else
-    MODEL=${MODELS[$((MODEL_CHOICE-1))]}
-fi
+echo "Which provider do you want to use?"
+echo "  1) OpenRouter    (https://openrouter.ai/api/v1)"
+echo "  2) NVIDIA        (https://integrate.api.nvidia.com/v1)"
+echo "  3) Inception Labs (https://api.inceptionlabs.ai/v1)"
+echo "  4) Custom provider"
+read -r -p "Choice [1]: " PROVIDER_CHOICE || true
+PROVIDER_CHOICE=${PROVIDER_CHOICE:-1}
 
-echo ""
-echo "  What is your base URL?"
-echo "  1) OpenRouter (https://openrouter.ai/api/v1)"
-echo "  2) Inception Labs (https://api.inceptionlabs.ai/v1)"
-echo "  3) NVIDIA (https://integrate.api.nvidia.com/v1)"
-echo "  4) Custom URL"
-read -p "  Choice [2]: " BASE_URL_CHOICE
-case "$BASE_URL_CHOICE" in
+case "$PROVIDER_CHOICE" in
     1) BASE_URL="https://openrouter.ai/api/v1" ;;
-    2) BASE_URL="https://api.inceptionlabs.ai/v1" ;;
-    3) BASE_URL="https://integrate.api.nvidia.com/v1" ;;
-    4) read -p "  Enter base URL: " BASE_URL ;;
-    *) BASE_URL="https://api.inceptionlabs.ai/v1" ;;
+    2) BASE_URL="https://integrate.api.nvidia.com/v1" ;;
+    3) BASE_URL="https://api.inceptionlabs.ai/v1" ;;
+    4) read -r -p "Enter provider base URL: " BASE_URL || true ;;
+    *) BASE_URL="https://openrouter.ai/api/v1" ;;
 esac
 
-# ---- Create config file ----
+if [ -z "$BASE_URL" ]; then
+    echo "ERROR: provider base URL is required."
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Question 3: API key
+# ---------------------------------------------------------------------------
 echo ""
-echo "[6/6] Creating configuration file..."
+read -r -p "Enter your API key: " API_KEY || true
 
-# Create config directory
-mkdir -p ~/.minecomp-ai
+if [ -z "$API_KEY" ]; then
+    echo "ERROR: API key is required."
+    exit 1
+fi
 
-# Create config.yaml
-cat > ~/.minecomp-ai/config.yaml << YAMLEOF
-# minecomp-ai configuration
+# ---------------------------------------------------------------------------
+# Fetch models from the provider
+# ---------------------------------------------------------------------------
+echo ""
+echo "Fetching available models from $BASE_URL ..."
+
+MODEL_LIST=$(python3 - "$BASE_URL" "$API_KEY" <<'PY' 2>/dev/null
+import json
+import sys
+import urllib.request
+
+base_url = sys.argv[1].rstrip("/")
+api_key = sys.argv[2]
+
+request = urllib.request.Request(
+    base_url + "/models",
+    headers={"Authorization": "Bearer " + api_key},
+)
+with urllib.request.urlopen(request, timeout=30) as response:
+    payload = json.load(response)
+
+for item in payload.get("data", []):
+    model_id = item.get("id")
+    if model_id:
+        print(model_id)
+PY
+) || MODEL_LIST=""
+
+# ---------------------------------------------------------------------------
+# Question 4: select a model
+# ---------------------------------------------------------------------------
+echo ""
+MODEL=""
+
+if [ -n "$MODEL_LIST" ]; then
+    echo "Select a model:"
+    declare -a MODELS=()
+    INDEX=0
+    while IFS= read -r MODEL_ID; do
+        INDEX=$((INDEX + 1))
+        MODELS[$INDEX]="$MODEL_ID"
+        echo "  $INDEX) $MODEL_ID"
+    done <<< "$MODEL_LIST"
+
+    read -r -p "Choice [1]: " MODEL_CHOICE || true
+    MODEL_CHOICE=${MODEL_CHOICE:-1}
+
+    if [ "$MODEL_CHOICE" -ge 1 ] 2>/dev/null && [ "$MODEL_CHOICE" -le "$INDEX" ] 2>/dev/null; then
+        MODEL="${MODELS[$MODEL_CHOICE]}"
+    else
+        echo "  Invalid choice."
+    fi
+fi
+
+if [ -z "$MODEL" ]; then
+    read -r -p "Enter model name manually: " MODEL || true
+fi
+
+if [ -z "$MODEL" ]; then
+    echo "ERROR: model is required."
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Install
+# ---------------------------------------------------------------------------
+echo ""
+echo "Installing minecomp-ai..."
+
+if [ "$INSTALL_CHOICE" = "1" ]; then
+    APP_DIR="$HOME/.local/share/minecomp-ai"
+else
+    APP_DIR="$PWD/minecomp-ai"
+fi
+
+if [ ! -d "$APP_DIR" ]; then
+    git clone https://github.com/fiozxr/minecomp-ai.git "$APP_DIR" || {
+        echo "ERROR: failed to clone the repository."
+        exit 1
+    }
+fi
+cd "$APP_DIR"
+
+echo "  Installing dependencies..."
+python3 -m pip install -r requirements.txt >/dev/null 2>&1 \
+    || python3 -m pip install --break-system-packages -r requirements.txt >/dev/null 2>&1 \
+    || {
+        echo "ERROR: failed to install dependencies."
+        echo "       Run manually: python3 -m pip install -r requirements.txt"
+        exit 1
+    }
+echo "  Dependencies installed."
+
+if [ "$INSTALL_CHOICE" = "1" ]; then
+    mkdir -p "$HOME/.local/bin"
+    cat > "$HOME/.local/bin/minecomp" <<'LAUNCHER'
+#!/usr/bin/env bash
+cd "$HOME/.local/share/minecomp-ai" && python3 -m minecomp "$@"
+LAUNCHER
+    chmod +x "$HOME/.local/bin/minecomp"
+    echo "  Launcher created: ~/.local/bin/minecomp"
+fi
+
+# ---------------------------------------------------------------------------
+# Write configuration
+# ---------------------------------------------------------------------------
+mkdir -p "$HOME/.minecomp-ai"
+
+cat > "$HOME/.minecomp-ai/config.yaml" <<YAMLEOF
+# minecomp-ai configuration (created by setup.sh)
 api_key: "$API_KEY"
 base_url: "$BASE_URL"
 model: "$MODEL"
@@ -193,18 +234,20 @@ gateway_host: "127.0.0.1"
 gateway_port: 8080
 YAMLEOF
 
-success "Configuration file created at ~/.minecomp-ai/config.yaml"
-echo "  API Key: ${API_KEY:0:8}..."
-echo "  Model: $MODEL"
-echo "  Base URL: $BASE_URL"
-
-# ---- Step 7: Next steps ----
+# ---------------------------------------------------------------------------
+# Done
+# ---------------------------------------------------------------------------
 echo ""
-echo "[7/5] Next steps:"
-echo "  1. Your agent is ready!"
-echo "  2. Start the WebSocket gateway on your Bedrock server:"
-echo "     python -m minecomp.gateway --host 0.0.0.0 --port 8080"
-echo "  3. Run the agent:"
-echo "     python -m minecomp"
+echo "========================================"
+echo "  Installation complete!"
+echo "========================================"
+echo ""
+echo "  Provider: $BASE_URL"
+echo "  Model:    $MODEL"
+echo "  Config:   ~/.minecomp-ai/config.yaml"
+echo ""
+echo "Next steps:"
+echo "  1. Start the gateway: python3 -m minecomp.gateway --host 0.0.0.0 --port 8080"
+echo "  2. Run the agent:     python3 -m minecomp"
 echo ""
 echo "Done!"

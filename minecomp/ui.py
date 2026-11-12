@@ -165,17 +165,30 @@ async def run_ui() -> None:
 
 def main():
     """CLI entry point."""
-    config = agent_mod.parse_args(sys.argv[1:])
-    cfg_path = config.pop("config_file", None)
+    cli = agent_mod.parse_args(sys.argv[1:])
+    cfg_path = cli.pop("config_file", None)
+
+    # Base config: explicit --config file, else the default user config file
     if cfg_path:
         config = agent_mod.load_config(cfg_path)
+    elif os.path.exists(CONFIG_FILE):
+        config = agent_mod.load_config(CONFIG_FILE)
+    else:
+        config = {}
 
-    # Merge CLI overrides
-    if config.get("api_key"):
-        config["api_key"] = config.pop("api_key")
-    if config.get("model"):
-        config["model"] = config.pop("model")
-    if config.get("list_models"):
+    # CLI flags override values from the config file
+    if cli.get("api_key"):
+        config["api_key"] = cli["api_key"]
+    if cli.get("model") and cli["model"] != "google/gemini-2.0-flash":
+        config["model"] = cli["model"]
+    if cli.get("base_url"):
+        config["base_url"] = cli["base_url"]
+    if cli.get("gateway_host") and cli["gateway_host"] != "127.0.0.1":
+        config["gateway_host"] = cli["gateway_host"]
+    if cli.get("gateway_port") and cli["gateway_port"] != 8080:
+        config["gateway_port"] = cli["gateway_port"]
+
+    if cli.get("list_models"):
         # List models and exit
         from . import llm as llm_mod
 
@@ -184,7 +197,7 @@ def main():
         api_key = config.get("api_key") or os.environ.get("MINECOMP_API_KEY")
 
         if not api_key:
-            print("[!] No API key found. Use --api-key or set MINECOMP_API_KEY.")
+            print("[!] No API key found. Use --api-key, set MINECOMP_API_KEY, or run setup.sh.")
             sys.exit(1)
 
         llm = llm_mod.LLM(api_key=api_key, base_url=base_url)
