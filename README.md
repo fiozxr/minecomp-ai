@@ -193,3 +193,186 @@ See `config.yaml.example` for all available options.
 ## License
 
 MIT
+
+
+## Command-Line Reference
+
+The `minecomp` entry point accepts the following command-line arguments:
+
+| Flag | Description |
+|------|-------------|
+| `--model <name>` | Select the AI model (e.g., `mercury-3`, `google/gemini-2.0-flash`) |
+| `--model=<name>` | Same as above, alternative syntax |
+| `--base-url <url>` | OpenAI-compatible API base URL (e.g., `https://openrouter.ai/api/v1`) |
+| `--api-key <key>` | API key for the LLM provider |
+| `--list-models` | Fetch and list available models, then exit |
+| `--config <path>` | Path to a YAML config file (default: `~/.minecomp-ai/config.yaml`) |
+| `--gateway-host <host>` | WebSocket gateway host (default: `127.0.0.1`) |
+| `--gateway-port <port>` | WebSocket gateway port (default: `8080`) |
+
+### CLI Examples
+
+```bash
+# List available models
+python -m minecomp --list-models --api-key YOUR_KEY --base-url https://openrouter.ai/api/v1
+
+# Run with a specific model and custom provider
+python -m minecomp --model mercury-3 --api-key YOUR_KEY --base-url https://api.inceptionlabs.ai/v1
+
+# Run with default config
+python -m minecomp
+```
+
+## Issues & Support
+
+### Reporting Bugs
+
+If you encounter a bug, please open an issue on GitHub with:
+- Your operating system and Python version (`python --version`)
+- The command you ran
+- The full error message (copy-paste, not screenshots)
+- Any relevant output from `--list-models`
+
+### Getting Help
+
+- Check the [Examples](#examples) section first — your use case may already be covered
+- Search existing GitHub issues before opening a new one
+- Provide reproducible steps and any logs from the terminal
+
+## Contributing
+
+We welcome contributions! Here's how to get started:
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/fiozxr/minecomp-ai.git
+cd minecomp-ai
+
+# Run the installer (or install manually)
+curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/setup.sh | bash
+
+# Activate your virtual environment
+source venv/bin/activate
+
+# Run tests (if available)
+python -m minecomp --list-models --api-key YOUR_KEY --base-url https://openrouter.ai/api/v1
+```
+
+### How to Contribute
+
+1. **Fork** the repository
+2. **Create a branch** for your feature or bugfix
+3. **Test your changes** locally (run `python -m minecomp --list-models`)
+4. **Commit** with clear, descriptive messages
+5. **Open a pull request** with:
+   - A summary of the change
+   - Testing steps you performed
+   - Screenshots or logs (if applicable)
+   - Any breaking changes (if applicable)
+
+### Areas for Contribution
+
+- **LLM providers** — add support for new OpenAI-compatible APIs
+- **Minecraft gameplay** — add more slash commands (`/say`, `/tp`, `/give`, etc.)
+- **UI** — improve the terminal interface and world selection
+- **Documentation** — translations, examples, troubleshooting guides
+- **Performance** — optimize LLM calls, reduce latency
+
+## Troubleshooting & Diagnostics
+
+### Common Issues
+
+#### No servers found on the network
+
+- Ensure your Bedrock server is running
+- Check that UDP broadcast is allowed on port 4242 (firewall settings)
+- Try `python -m minecomp.lan` directly to debug discovery
+
+#### API key rejected
+
+- Verify your API key is correct and active
+- Check the base URL is correct (common mistake: missing `/v1` suffix)
+- Ensure the model name is supported by your provider (run `--list-models` to see)
+
+#### Gateway connection failed
+
+- Start the WebSocket gateway on the server:
+  ```bash
+  python -m minecomp.gateway --host 0.0.0.0 --port 8080
+  ```
+- In Minecraft, run `/wsserver <server-ip>:8080` (cheats ON)
+- Verify the IP address matches your server's LAN IP
+
+### Diagnostics
+
+Run these commands to diagnose issues:
+
+```bash
+# Check Python version
+python --version
+
+# List available models
+python -m minecomp --list-models --api-key YOUR_KEY --base-url https://openrouter.ai/api/v1
+
+# Test LLM connectivity
+python -c "from minecomp.llm import LLM; import asyncio; llm = LLM(model='mercury-3', base_url='https://api.inceptionlabs.ai/v1', api_key='YOUR_KEY'); print(asyncio.run(llm.list_models()))"
+
+# Check config file
+cat ~/.minecomp-ai/config.yaml
+```
+
+## Examples
+
+### Example 1: Run with OpenRouter
+
+```bash
+python -m minecomp --api-key sk-... --base-url https://openrouter.ai/api/v1 --model google/gemini-2.0-flash
+```
+
+### Example 2: Run with NVIDIA
+
+```bash
+python -m minecomp --api-key nvapi-... --base-url https://integrate.api.nvidia.com/v1 --model nvidia/llama-3.3-70b-instruct
+```
+
+### Example 3: Run with Inception Labs
+
+```bash
+python -m minecomp --api-key sk_a89158733aa085d38e29573047006b81a067d2991afdb9c5235bfcfe76 --base-url https://api.inceptionlabs.ai/v1 --model mercury-3
+```
+
+## Project Structure
+
+```
+minecomp-ai/
+├── setup.sh                    # One-click installer
+├── README.md                   # This file
+├── requirements.txt            # Python dependencies
+├── config.yaml.example         # Configuration template
+├── minecomp/
+│   ├── __init__.py            # Version: 0.2.1
+│   ├── __main__.py            # Entry point (python -m minecomp)
+│   ├── agent.py               # Core orchestrator
+│   ├── llm.py                 # LLM client (OpenAI-compatible)
+│   ├── lan.py                 # LAN discovery (UDP broadcast)
+│   ├── ws_bridge.py           # WebSocket bridge for Minecraft
+│   ├── chat_bridge.py         # Chat bridge between players and AI
+│   ├── gateway.py             # WebSocket gateway (server-side)
+│   └── ui.py                  # Terminal user interface
+└── minecomp-ai/               # User config directory (~/.minecomp-ai)
+    └── config.yaml             # Your configuration (created by setup.sh)
+```
+
+## Roadmap
+
+- [ ] Add more Minecraft slash commands (`/effect`, `/scoreboard`, etc.)
+- [ ] Support for voice chat and TTS
+- [ ] Web-based UI option
+- [ ] Cloud deployment guides (Docker, VPS)
+- [ ] Multi-agent coordination
+
+## License
+
+MIT
