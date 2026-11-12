@@ -74,9 +74,15 @@ def list_available_models(config_path: str = None):
     return [(m, "Run model") for m in models]
 
 
-def _select_world(servers: list) -> dict:
-    """Present a numbered list of discovered servers and return the choice."""
+def _select_world(servers: list, allow_empty: bool = False) -> dict:
+    """Present a numbered list of discovered servers and return the choice.
+
+    If `allow_empty` is True and there are no servers yet, return None so the
+    caller can keep waiting instead of exiting.
+    """
     if not servers:
+        if allow_empty:
+            return None
         print("[!] No servers found on the LAN.")
         sys.exit(1)
 
@@ -87,6 +93,8 @@ def _select_world(servers: list) -> dict:
     while True:
         try:
             choice = input("\nSelect world [1]: ").strip()
+            if not choice:
+                return None
             idx = int(choice) - 1
             if 0 <= idx < len(servers):
                 return servers[idx].to_json()
@@ -140,18 +148,37 @@ async def run_ui() -> None:
     # 1. Load / configure
     config = _load_or_configure()
 
-    # 2. LAN discover
-    print("\n[ Discovering Minecraft worlds on LAN ... ]")
+    # 2. Discover LAN worlds continuously until one is selected
+    print("\n[ Searching for Minecraft worlds on LAN ... (Ctrl+C to stop) ]")
     disc = lan.LanDiscovery()
-    servers = await disc.discover(timeout=3.0)
-    if not servers:
-        print("[!] No servers discovered. Is a minecomp-ai server running?")
+    try:
+        await disc.discover_continuous(interval=3.0)
+    except Exception as e:
+        print(f"[!] Discovery error: {e}")
         sys.exit(1)
 
-    # 3. Select world
-    world = _select_world(servers)
+    try:
+        # Keep waiting until the user picks a world; re-print the list as
+        # new servers appear.
+        seen = set()
+        while True:
+            if not disc.servers:
+                print("  No servers yet — still searching...")
+            else:
+                for s in disc.servers:
+                    key = (s.ip, s.world)
+                    if key not in seen:
+                        print(f"  [New] {s.world} ({s.players} player(s), {s.ip})")
+                        seen.add(key)
 
-    # 4. Confirm launch
+            world = _select_world(disc.servers, allow_empty=True)
+            if world is not None:
+                break
+            await asyncio.sleep(2)
+    finally:
+        disc.stop()
+
+    # 3. Confirm launch
     print("\n" + "=" * 40)
     print("  Launching agent ...")
     print(f"  World:  {world['world']}")
