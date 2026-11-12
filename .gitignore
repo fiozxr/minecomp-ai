@@ -10,9 +10,8 @@ venv/
 ENV/
 .env
 
-# Config files with secrets
+# Config files with secrets (the example template is safe to commit)
 config.yaml
-config.yaml.example
 
 # OS files
 .DS_Store

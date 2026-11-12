@@ -86,18 +86,28 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "Which provider do you want to use?"
-echo "  1) OpenRouter    (https://openrouter.ai/api/v1)"
-echo "  2) NVIDIA        (https://integrate.api.nvidia.com/v1)"
-echo "  3) Inception Labs (https://api.inceptionlabs.ai/v1)"
-echo "  4) Custom provider"
+echo "  1) OpenRouter     (https://openrouter.ai/api/v1)"
+echo "  2) OpenAI         (https://api.openai.com/v1)"
+echo "  3) NVIDIA         (https://integrate.api.nvidia.com/v1)"
+echo "  4) Together AI    (https://api.together.xyz/v1)"
+echo "  5) Groq           (https://api.groq.com/openai/v1)"
+echo "  6) DeepSeek       (https://api.deepseek.com/v1)"
+echo "  7) Mistral        (https://api.mistral.ai/v1)"
+echo "  8) Ollama (local) (http://localhost:11434/v1)"
+echo "  9) Custom provider (enter your own base URL)"
 read -r -p "Choice [1]: " PROVIDER_CHOICE || true
 PROVIDER_CHOICE=${PROVIDER_CHOICE:-1}
 
 case "$PROVIDER_CHOICE" in
     1) BASE_URL="https://openrouter.ai/api/v1" ;;
-    2) BASE_URL="https://integrate.api.nvidia.com/v1" ;;
-    3) BASE_URL="https://api.inceptionlabs.ai/v1" ;;
-    4) read -r -p "Enter provider base URL: " BASE_URL || true ;;
+    2) BASE_URL="https://api.openai.com/v1" ;;
+    3) BASE_URL="https://integrate.api.nvidia.com/v1" ;;
+    4) BASE_URL="https://api.together.xyz/v1" ;;
+    5) BASE_URL="https://api.groq.com/openai/v1" ;;
+    6) BASE_URL="https://api.deepseek.com/v1" ;;
+    7) BASE_URL="https://api.mistral.ai/v1" ;;
+    8) BASE_URL="http://localhost:11434/v1" ;;
+    9) read -r -p "Enter provider base URL: " BASE_URL || true ;;
     *) BASE_URL="https://openrouter.ai/api/v1" ;;
 esac
 
@@ -138,9 +148,20 @@ request = urllib.request.Request(
 with urllib.request.urlopen(request, timeout=30) as response:
     payload = json.load(response)
 
+seen = set()
+
+# OpenAI-style: {"data": [{"id": ...}]}
 for item in payload.get("data", []):
     model_id = item.get("id")
-    if model_id:
+    if model_id and model_id not in seen:
+        seen.add(model_id)
+        print(model_id)
+
+# Ollama-style: {"models": [{"name": ...}]}
+for item in payload.get("models", []):
+    model_id = item.get("name") or item.get("id")
+    if model_id and model_id not in seen:
+        seen.add(model_id)
         print(model_id)
 PY
 ) || MODEL_LIST=""
@@ -154,17 +175,33 @@ MODEL=""
 if [ -n "$MODEL_LIST" ]; then
     echo "Select a model:"
     declare -a MODELS=()
-    INDEX=0
+    TOTAL=0
     while IFS= read -r MODEL_ID; do
-        INDEX=$((INDEX + 1))
-        MODELS[$INDEX]="$MODEL_ID"
-        echo "  $INDEX) $MODEL_ID"
+        TOTAL=$((TOTAL + 1))
+        MODELS[$TOTAL]="$MODEL_ID"
     done <<< "$MODEL_LIST"
+
+    MAX_SHOW=50
+    SHOW=$TOTAL
+    if [ "$SHOW" -gt "$MAX_SHOW" ]; then
+        SHOW=$MAX_SHOW
+    fi
+
+    for i in $(seq 1 "$SHOW"); do
+        echo "  $i) ${MODELS[$i]}"
+    done
+    if [ "$TOTAL" -gt "$SHOW" ]; then
+        echo "  ... and $((TOTAL - SHOW)) more (choose 0 to enter a model name manually)"
+    fi
+    echo "  0) Enter model name manually"
+    echo ""
 
     read -r -p "Choice [1]: " MODEL_CHOICE || true
     MODEL_CHOICE=${MODEL_CHOICE:-1}
 
-    if [ "$MODEL_CHOICE" -ge 1 ] 2>/dev/null && [ "$MODEL_CHOICE" -le "$INDEX" ] 2>/dev/null; then
+    if [ "$MODEL_CHOICE" = "0" ]; then
+        read -r -p "Model name: " MODEL || true
+    elif [ "$MODEL_CHOICE" -ge 1 ] 2>/dev/null && [ "$MODEL_CHOICE" -le "$SHOW" ] 2>/dev/null; then
         MODEL="${MODELS[$MODEL_CHOICE]}"
     else
         echo "  Invalid choice."

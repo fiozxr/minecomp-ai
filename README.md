@@ -5,23 +5,21 @@ executes tasks given via chat, using any OpenAI-compatible API.
 
 ## Quick Start (copy-paste ready)
 
-### 1. Install dependencies
+### 1. Run the installer
 ```bash
 curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/setup.sh | bash
 ```
 
-That's it. The installer will:
-- Check Python and install dependencies
-- Create ~/.minecomp-ai/config.yaml from the example
-- Guide you through first-run setup
+The installer will:
+- Check and install `git` / `python3` / `pip` if missing
+- Ask where to install (global or current directory)
+- Ask which provider you use (OpenRouter, OpenAI, NVIDIA, Together AI,
+  Groq, DeepSeek, Mistral, Ollama, or a custom endpoint)
+- Ask for your API key
+- Fetch the live model list from your provider and let you pick a model
+- Install dependencies and write `~/.minecomp-ai/config.yaml`
 
-### 2. Configure your API key
-```bash
-nano ~/.minecomp-ai/config.yaml
-```
-Set your `api_key` (OpenRouter, NVIDIA, or any OpenAI-compatible endpoint).
-
-### 3. Set up the Minecraft server side
+### 2. Set up the Minecraft server side
 On your Bedrock server:
 1. Install the **mcbe-ws-sdk** addon in the world
 2. Start the WebSocket gateway:
@@ -33,33 +31,45 @@ On your Bedrock server:
    /wsserver <server-ip>:8080
    ```
 
-### 4. Run the agent
+### 3. Run the agent
 ```bash
 python -m minecomp
 ```
 
-### 5. Chat with your agent
+### 4. Chat with your agent
 Players in your LAN world type messages. The AI agent reads them
 and responds or executes commands (teleport, give items, change weather, etc.).
 
 
 ## Custom Provider Setup
 
-The agent supports any OpenAI-compatible API (OpenRouter, NVIDIA, local models, etc.).
+The agent supports any OpenAI-compatible API. The installer asks which provider
+you use, fetches the live model list from it, and lets you pick a model — or
+enter any model name manually.
+
+### Supported providers
+
+| Provider | base_url |
+|----------|----------|
+| OpenRouter | `https://openrouter.ai/api/v1` |
+| OpenAI | `https://api.openai.com/v1` |
+| NVIDIA | `https://integrate.api.nvidia.com/v1` |
+| Together AI | `https://api.together.xyz/v1` |
+| Groq | `https://api.groq.com/openai/v1` |
+| DeepSeek | `https://api.deepseek.com/v1` |
+| Mistral | `https://api.mistral.ai/v1` |
+| Ollama (local) | `http://localhost:11434/v1` |
+| Any other OpenAI-compatible endpoint | custom base URL |
 
 ### Setup
 
-1. **Get your API key** from your provider.
+1. **Run the installer** — it asks for your provider, API key, and model:
 
-2. **Set the base URL** for your provider. Common examples:
+   ```bash
+   curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/setup.sh | bash
+   ```
 
-   | Provider | base_url |
-   |----------|----------|
-   | OpenRouter | `https://openrouter.ai/api/v1` |
-   | NVIDIA | `https://integrate.api.nvidia.com/v1` |
-   | Local (Ollama, LM Studio) | `http://localhost:1234/v1` |
-
-3. **Update `~/.minecomp-ai/config.yaml`**:
+2. **Or configure manually** — edit `~/.minecomp-ai/config.yaml`:
 
    ```yaml
    api_key: "your-api-key-here"
@@ -67,7 +77,7 @@ The agent supports any OpenAI-compatible API (OpenRouter, NVIDIA, local models, 
    model: "google/gemini-2.0-flash"
    ```
 
-4. **Run the agent**:
+3. **Run the agent**:
 
    ```bash
    python -m minecomp
@@ -201,7 +211,7 @@ The `minecomp` entry point accepts the following command-line arguments:
 
 | Flag | Description |
 |------|-------------|
-| `--model <name>` | Select the AI model (e.g., `mercury-3`, `google/gemini-2.0-flash`) |
+| `--model <name>` | Select the AI model (any model ID from your provider) |
 | `--model=<name>` | Same as above, alternative syntax |
 | `--base-url <url>` | OpenAI-compatible API base URL (e.g., `https://openrouter.ai/api/v1`) |
 | `--api-key <key>` | API key for the LLM provider |
@@ -216,8 +226,8 @@ The `minecomp` entry point accepts the following command-line arguments:
 # List available models
 python -m minecomp --list-models --api-key YOUR_KEY --base-url https://openrouter.ai/api/v1
 
-# Run with a specific model and custom provider
-python -m minecomp --model mercury-3 --api-key YOUR_KEY --base-url https://api.inceptionlabs.ai/v1
+# Run with a specific model and provider
+python -m minecomp --model YOUR_MODEL --api-key YOUR_KEY --base-url https://your-provider.com/v1
 
 # Run with default config
 python -m minecomp
@@ -317,7 +327,7 @@ python --version
 python -m minecomp --list-models --api-key YOUR_KEY --base-url https://openrouter.ai/api/v1
 
 # Test LLM connectivity
-python -c "from minecomp.llm import LLM; import asyncio; llm = LLM(model='mercury-3', base_url='https://api.inceptionlabs.ai/v1', api_key='YOUR_KEY'); print(asyncio.run(llm.list_models()))"
+python -c "from minecomp.llm import LLM; import asyncio; llm = LLM(model='YOUR_MODEL', base_url='https://your-provider.com/v1', api_key='YOUR_KEY'); print(asyncio.run(llm.list_models()))"
 
 # Check config file
 cat ~/.minecomp-ai/config.yaml
@@ -337,10 +347,10 @@ python -m minecomp --api-key sk-... --base-url https://openrouter.ai/api/v1 --mo
 python -m minecomp --api-key nvapi-... --base-url https://integrate.api.nvidia.com/v1 --model nvidia/llama-3.3-70b-instruct
 ```
 
-### Example 3: Run with Inception Labs
+### Example 3: Run with any other OpenAI-compatible provider
 
 ```bash
-python -m minecomp --api-key sk_a89158733aa085d38e29573047006b81a067d2991afdb9c5235bfcfe76 --base-url https://api.inceptionlabs.ai/v1 --model mercury-3
+python -m minecomp --api-key YOUR_KEY --base-url https://your-provider.com/v1 --model YOUR_MODEL
 ```
 
 ## Project Structure
