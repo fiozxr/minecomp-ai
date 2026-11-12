@@ -4,6 +4,18 @@
 
 set -euo pipefail
 
+# Read a line from the terminal (not stdin) so the script works even when
+# invoked via `curl -sSL ... | bash`.
+# If we have a controlling terminal, read prompts from it rather than from the
+# curl pipe (so `curl -sSL ... | bash` still prompts interactively).
+{ exec < /dev/tty; } 2>/dev/null || true
+
+prompt() {
+    local val=""
+    read -r -p "$1 " val || true
+    printf '%s' "$val"
+}
+
 echo "========================================"
 echo "  minecomp-ai installer"
 echo "========================================"
@@ -73,7 +85,7 @@ echo "Where do you want to install?"
 echo "  1) Global (system-wide)"
 echo "  2) Current directory"
 echo "  3) Exit"
-read -r -p "Choice [1]: " INSTALL_CHOICE || true
+INSTALL_CHOICE=$(prompt "Choice [1]: ")
 INSTALL_CHOICE=${INSTALL_CHOICE:-1}
 
 if [ "$INSTALL_CHOICE" = "3" ]; then
@@ -95,7 +107,7 @@ echo "  6) DeepSeek       (https://api.deepseek.com/v1)"
 echo "  7) Mistral        (https://api.mistral.ai/v1)"
 echo "  8) Ollama (local) (http://localhost:11434/v1)"
 echo "  9) Custom provider (enter your own base URL)"
-read -r -p "Choice [1]: " PROVIDER_CHOICE || true
+PROVIDER_CHOICE=$(prompt "Choice [1]: ")
 PROVIDER_CHOICE=${PROVIDER_CHOICE:-1}
 
 case "$PROVIDER_CHOICE" in
@@ -107,7 +119,7 @@ case "$PROVIDER_CHOICE" in
     6) BASE_URL="https://api.deepseek.com/v1" ;;
     7) BASE_URL="https://api.mistral.ai/v1" ;;
     8) BASE_URL="http://localhost:11434/v1" ;;
-    9) read -r -p "Enter provider base URL: " BASE_URL || true ;;
+    9) BASE_URL=$(prompt "Enter provider base URL:") ;;
     *) BASE_URL="https://openrouter.ai/api/v1" ;;
 esac
 
@@ -120,7 +132,7 @@ fi
 # Question 3: API key
 # ---------------------------------------------------------------------------
 echo ""
-read -r -p "Enter your API key: " API_KEY || true
+API_KEY=$(prompt "Enter your API key:")
 
 if [ -z "$API_KEY" ]; then
     echo "ERROR: API key is required."
@@ -196,11 +208,11 @@ if [ -n "$MODEL_LIST" ]; then
     echo "  0) Enter model name manually"
     echo ""
 
-    read -r -p "Choice [1]: " MODEL_CHOICE || true
+    MODEL_CHOICE=$(prompt "Choice [1]: ")
     MODEL_CHOICE=${MODEL_CHOICE:-1}
 
     if [ "$MODEL_CHOICE" = "0" ]; then
-        read -r -p "Model name: " MODEL || true
+        MODEL=$(prompt "Model name:")
     elif [ "$MODEL_CHOICE" -ge 1 ] 2>/dev/null && [ "$MODEL_CHOICE" -le "$SHOW" ] 2>/dev/null; then
         MODEL="${MODELS[$MODEL_CHOICE]}"
     else
@@ -209,7 +221,7 @@ if [ -n "$MODEL_LIST" ]; then
 fi
 
 if [ -z "$MODEL" ]; then
-    read -r -p "Enter model name manually: " MODEL || true
+    MODEL=$(prompt "Enter model name manually:")
 fi
 
 if [ -z "$MODEL" ]; then
