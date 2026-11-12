@@ -103,6 +103,25 @@ def _select_world(servers: list, allow_empty: bool = False) -> dict:
         print("Invalid selection. Try again.")
 
 
+def _manual_world() -> dict:
+    """Prompt for gateway/world details directly (used when discovery finds
+    nothing, e.g. when connecting to your own local world)."""
+    print("\n[ Manual connection ]")
+    host = _prompt("  Gateway host (IP where the gateway runs)", "127.0.0.1")
+    port = _prompt("  Gateway port", "8080")
+    world = _prompt("  World name (anything to label it)", "")
+    try:
+        port_i = int(port)
+    except ValueError:
+        port_i = 8080
+    return {
+        "ip": host.strip() or "127.0.0.1",
+        "world": world.strip() or host.strip() or "local",
+        "players": 0,
+        "port": port_i,
+    }
+
+
 def _load_or_configure() -> dict:
     """Check for an existing config; if missing, guide the user through setup."""
     os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -158,12 +177,25 @@ async def run_ui() -> None:
         sys.exit(1)
 
     try:
-        # Keep waiting until the user picks a world; re-print the list as
-        # new servers appear.
+        # If discovery finds nothing within a few seconds, offer a manual
+        # connection instead of waiting forever.
         seen = set()
+        manual_offered = False
         while True:
             if not disc.servers:
-                print("  No servers yet — still searching...")
+                if not manual_offered:
+                    print("  No minecomp-ai servers discovered.")
+                    print("  (Your own Bedrock world won't appear here — it does")
+                    print("   not answer minecomp-ai's discovery protocol.)")
+                    print("  Press Enter to connect manually, or wait to keep scanning.")
+                    manual_offered = True
+                    resp = _prompt("  Connect manually? [y/N]", "n")
+                    if resp.strip().lower() in ("y", "yes"):
+                        world = _manual_world()
+                        break
+                # still nothing discovered, keep scanning (brief pause)
+                await asyncio.sleep(1)
+                continue
             else:
                 for s in disc.servers:
                     key = (s.ip, s.world)
@@ -179,6 +211,12 @@ async def run_ui() -> None:
         disc.stop()
 
     # 3. Confirm launch
+    # Use the selected world's host/port for the gateway connection. This is
+    # essential for manual connections (discovery won't find your own local
+    # Bedrock world), and harmless for discovered servers (same values).
+    config["gateway_host"] = world.get("ip", config.get("gateway_host", "127.0.0.1"))
+    config["gateway_port"] = world.get("port", config.get("gateway_port", 8080))
+
     print("\n" + "=" * 40)
     print("  Launching agent ...")
     print(f"  World:  {world['world']}")
