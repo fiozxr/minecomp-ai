@@ -7,17 +7,18 @@ executes tasks given via chat, using any OpenAI-compatible API.
 
 ### 1. Run the installer
 ```bash
-curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/setup.sh | bash
+curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/run.sh | bash
 ```
 
-The installer will:
+The script will:
 - Check and install `git` / `python3` / `pip` if missing
-- Ask where to install (global or current directory)
+- Clone the project to `~/.local/share/minecomp-ai`
 - Ask which provider you use (OpenRouter, OpenAI, NVIDIA, Together AI,
   Groq, DeepSeek, Mistral, Ollama, or a custom endpoint)
 - Ask for your API key
 - Fetch the live model list from your provider and let you pick a model
-- Install dependencies and write `~/.minecomp-ai/config.yaml`
+- Install dependencies, write `~/.minecomp-ai/config.yaml`, and launch the
+  agent (with continuous LAN discovery)
 
 ### 2. Set up the Minecraft server side
 On your Bedrock server:
@@ -66,7 +67,7 @@ enter any model name manually.
 1. **Run the installer** — it asks for your provider, API key, and model:
 
    ```bash
-   curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/setup.sh | bash
+   curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/run.sh | bash
    ```
 
 2. **Or configure manually** — edit `~/.minecomp-ai/config.yaml`:
@@ -213,7 +214,7 @@ git clone https://github.com/fiozxr/minecomp-ai.git
 cd minecomp-ai
 
 # Run the installer (or install manually)
-curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/setup.sh | bash
+curl -sSL https://github.com/fiozxr/minecomp-ai/raw/main/run.sh | bash
 
 # Activate your virtual environment
 source venv/bin/activate
@@ -309,7 +310,7 @@ python -m minecomp --api-key YOUR_KEY --base-url https://your-provider.com/v1 --
 
 ```
 minecomp-ai/
-├── setup.sh                    # One-click installer
+├── run.sh                      # One script: install + configure + run
 ├── README.md                   # This file
 ├── requirements.txt            # Python dependencies
 ├── minecomp/
@@ -317,13 +318,13 @@ minecomp-ai/
 │   ├── __main__.py            # Entry point (python -m minecomp)
 │   ├── agent.py               # Core orchestrator
 │   ├── llm.py                 # LLM client (OpenAI-compatible)
-│   ├── lan.py                 # LAN discovery (UDP broadcast)
+│   ├── lan.py                 # LAN discovery (continuous UDP scan)
 │   ├── ws_bridge.py           # WebSocket bridge for Minecraft
 │   ├── chat_bridge.py         # Chat bridge between players and AI
 │   ├── gateway.py             # WebSocket gateway (server-side)
 │   └── ui.py                  # Terminal user interface
 └── minecomp-ai/               # User config directory (~/.minecomp-ai)
-    └── config.yaml             # Your configuration (created by setup.sh)
+    └── config.yaml             # Your configuration (created by run.sh)
 ```
 
 ## Roadmap
