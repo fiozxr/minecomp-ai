@@ -57,3 +57,17 @@ class LLM:
             model=self.model, input=text
         )
         return response.data[0].embedding
+
+    async def list_models(self):
+        """Fetch available models from the API provider.
+
+        Returns a list of model names (e.g., ['google/gemini-2.0-flash',
+        'openai/gpt-4o-mini']). If the API doesn't support this endpoint,
+        returns an empty list.
+        """
+        try:
+            response = await self._client.models.list()
+            return [m.id for m in response.data]
+        except Exception as e:
+            print(f"[!] Could not fetch models: {e}")
+            return []

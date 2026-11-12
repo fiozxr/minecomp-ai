@@ -42,6 +42,38 @@ def _prompt_password(text: str, default: str = "") -> str:
     return val if val else default
 
 
+def list_available_models(config_path: str = None):
+    """Fetch available models from the configured API provider.
+
+    Returns a list of (model_name, description) tuples.
+    """
+    import os
+
+    config = {}
+    if config_path and os.path.exists(config_path):
+        import yaml
+        with open(config_path) as f:
+            config = yaml.safe_load(f) or {}
+
+    api_key = config.get("api_key") or os.environ.get("MINECOMP_API_KEY")
+    base_url = config.get("base_url") or os.environ.get("MINECOMP_BASE_URL", "https://openrouter.ai/api/v1")
+
+    if not api_key:
+        print("[!] No API key found. Set MINECOMP_API_KEY env var or use --api-key.")
+        return []
+
+    from .llm import LLM
+    llm = LLM(api_key=api_key, base_url=base_url)
+
+    models = asyncio.run(llm.list_models())
+    if not models:
+        # Fallback: return default model
+        return [("google/gemini-2.0-flash", "Default model (OpenRouter)")]
+
+    # Return as (name, description) tuples
+    return [(m, "Run model") for m in models]
+
+
 def _select_world(servers: list) -> dict:
     """Present a numbered list of discovered servers and return the choice."""
     if not servers:
@@ -143,6 +175,29 @@ def main():
         config["api_key"] = config.pop("api_key")
     if config.get("model"):
         config["model"] = config.pop("model")
+    if config.get("list_models"):
+        # List models and exit
+        from . import llm as llm_mod
+
+        # Determine base_url
+        base_url = config.get("base_url") or os.environ.get("MINECOMP_BASE_URL", "https://openrouter.ai/api/v1")
+        api_key = config.get("api_key") or os.environ.get("MINECOMP_API_KEY")
+
+        if not api_key:
+            print("[!] No API key found. Use --api-key or set MINECOMP_API_KEY.")
+            sys.exit(1)
+
+        llm = llm_mod.LLM(api_key=api_key, base_url=base_url)
+        models = asyncio.run(llm.list_models())
+
+        if models:
+            print("Available models:")
+            for i, model_name in enumerate(models, 1):
+                print(f"  [{i}] {model_name}")
+        else:
+            print("No models found. Check your API key and base_url.")
+            sys.exit(1)
+        return
 
     asyncio.run(run_ui())
 

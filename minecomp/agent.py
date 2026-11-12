@@ -107,10 +107,12 @@ def parse_args(argv):
     config = {
         "api_key": None,
         "model": "google/gemini-2.0-flash",
+        "model_name": None,
         "base_url": None,
         "gateway_host": "127.0.0.1",
         "gateway_port": 8080,
         "config_file": None,
+        "list_models": False,
     }
     i = 0
     while i < len(argv):
@@ -118,24 +120,21 @@ def parse_args(argv):
         if arg == "--config" and i + 1 < len(argv):
             config["config_file"] = argv[i + 1]
             i += 2
-        elif arg.startswith("--api-key="):
-            config["api_key"] = arg.split("=", 1)[1]
-            i += 1
         elif arg == "--api-key" and i + 1 < len(argv):
             config["api_key"] = argv[i + 1]
             i += 2
-        elif arg.startswith("--model="):
-            config["model"] = arg.split("=", 1)[1]
+        elif arg == "--base-url" and i + 1 < len(argv):
+            config["base_url"] = argv[i + 1]
+            i += 2
+        elif arg == "--list-models":
+            config["list_models"] = True
             i += 1
         elif arg == "--model" and i + 1 < len(argv):
             config["model"] = argv[i + 1]
             i += 2
-        elif arg.startswith("--base-url="):
-            config["base_url"] = arg.split("=", 1)[1]
+        elif arg.startswith("--model="):
+            config["model"] = arg.split("=", 1)[1]
             i += 1
-        elif arg == "--base-url" and i + 1 < len(argv):
-            config["base_url"] = argv[i + 1]
-            i += 2
         elif arg.startswith("--gateway-host="):
             config["gateway_host"] = arg.split("=", 1)[1]
             i += 1
@@ -153,7 +152,6 @@ def parse_args(argv):
             i += 1
     return config
 
-
 def load_config(config_path: str) -> dict:
     """Load configuration from a YAML file if provided."""
     import yaml
@@ -161,6 +159,7 @@ def load_config(config_path: str) -> dict:
     default = {
         "api_key": None,
         "model": "google/gemini-2.0-flash",
+        "model_name": None,
         "base_url": None,
         "gateway_host": "127.0.0.1",
         "gateway_port": 8080,
