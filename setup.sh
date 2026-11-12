@@ -33,7 +33,7 @@ if [ -f config.yaml.example ]; then
   fi
 fi
 
-echo "[4/5] Git setup ..."
+echo "[3/5] Git setup ..."
 if [ -d .git ]; then
   echo "  Already a git repo."
 else
@@ -44,7 +44,7 @@ else
   echo "  Committed."
 fi
 
-echo "[5/5] Next steps ..."
+echo "[4/5] Next steps ..."
 echo ""
 echo "  Configuration:"
 echo "    Edit ~/.minecomp-ai/config.yaml and set your api_key."
